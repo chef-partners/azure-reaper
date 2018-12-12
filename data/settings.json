@@ -1,0 +1,135 @@
+[
+  {
+    "name": "tag_date",
+    "value": "createdDate",
+    "category": "tags",
+    "display_name": "Created Date",
+    "description": "Date and time that the resource group was created"
+  },
+  {
+    "name": "tag_owner",
+    "value": "owner",
+    "category": "tags",
+    "display_name": "Owner Tag",
+    "description": "Name of tag that contains the name of the person that created the resource group"
+  },
+  {
+    "name": "tag_owner_email",
+    "value": "ownerEmail",
+    "category": "tags",
+    "display_name": "Owner Email Tag",
+    "description": "Email address of the owner"
+  },
+  {
+    "name": "tag_vm_start_stop_time",
+    "value": "STARTSTOPTIME",
+    "category": "tags",
+    "display_name": "VM Start Stop Time",
+    "description": "Start and stop times for a VM. This should be in the format '<HH:mm> - <HH:mm>'"
+  },
+  {
+    "name": "tag_timezone",
+    "value": "TIMEZONE",
+    "category": "tags",
+    "display_name": "Timezone",
+    "description": "Timezone that the resource should be measured against"
+  },
+  {
+    "name": "tag_days_of_week",
+    "value": "DAYSOFWEEK",
+    "category": "tags",
+    "display_name": "Days of Week",
+    "description": "Days of the week that a VM is permitted to run. 0 - Sunday, 1 - Monday etc"
+  },  
+  {
+    "name": "duration",
+    "value": 7.0,
+    "category": "lifecycle",
+    "display_name": "Duration Period",
+    "description": "Number of days that an RG is allowed to exist for"
+  },
+  {
+    "name": "destroy",
+    "value": false,
+    "category": "lifecycle",
+    "display_name": "Destroy",
+    "description": "State if the reaper is in destructive mode or not"
+  },
+  {
+    "name": "manage_vms",
+    "value": false,
+    "category": "lifecycle",
+    "display_name": "Managed Virtual Machines",
+    "description": "If enabled the Reaper will stop and start virtual machines according to the schedule."
+  },
+  {
+    "name": "vm_start",
+    "value": "0800",
+    "category": "lifecycle",
+    "display_name": "Virtual Machine Start Time",
+    "description": "Time at which Virtual Machines are permitted to run from"
+  },
+  {
+    "name": "vm_stop",
+    "value": "1800",
+    "category": "lifecycle",
+    "display_name": "Virtual Machine Stop Time",
+    "description": "Time at which Virtual Machines are permitted to run until"
+  },
+  {
+    "name": "permitted_days",
+    "value": "1,2,3,4,5",
+    "category": "lifecycle",
+    "display_name": "Permitted Days",
+    "description": "Days of week that a virtual machine is permitted to run"
+  },
+  {
+    "name": "webhook_url",
+    "value": "",
+    "category": "slack",
+    "display_name": "Webhook URL",
+    "description": "URL that is required to post messages to in Slack"
+  },
+  {
+    "name": "icon_url",
+    "value": "https://cdn.icon-icons.com/icons2/390/PNG/512/grim-reaper_38285.png",
+    "category": "slack",
+    "display_name": "Icon URL",
+    "description": "URL to icon used in Slack messages"
+  },
+  {
+    "name": "notification_emails",
+    "value": "-",
+    "category": "slack",
+    "display_name": "Notifications",
+    "description": "List of email addresses that should recieve Slack notifications from the reaper"
+  },
+  {
+    "name": "bot_username",
+    "value": "Azure Reaper",
+    "category": "slack",
+    "display_name": "Bot Username",
+    "description": "Name of the bot when it sends messages to users in Slack"
+  },
+  {
+    "name": "token",
+    "value": "",
+    "category": "slack",
+    "display_name": "Token",
+    "description": "Token used to post messages to Slack"
+  },
+  {
+    "name": "slack_enabled",
+    "value": false,
+    "category": "slack",
+    "display_name": "Slack Notifications",
+    "description": "State if Reaper is permitted to send Slack notifications"
+  },
+  {
+    "name": "notify_delay",
+    "value": 86400,
+    "category": "lifecycle",
+    "display_name": "Notification Delay",
+    "description": "Delay between notifing owners of shutdown or deletion"
+  }
+]
