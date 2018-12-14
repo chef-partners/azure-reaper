@@ -47,6 +47,14 @@ namespace Azure.Reaper
                     entity = new Setting(client, log);
                     break;
 
+                case "location":
+                    entity = new LocationTZ(client, log);
+                    break;
+
+                case "subscription":
+                    entity = new Subscription(client, log);
+                    break;
+
                 default:
                     msg = new ResponseMessage(String.Format("Specified optype is not recognised: {0}", optype), true, HttpStatusCode.NotFound);
                     return msg.CreateResponse();
@@ -56,14 +64,57 @@ namespace Azure.Reaper
             if (req.Method == "GET")
             {
                 // Set the identifier on the entity so that a search can be performed
-                dynamic result = entity.Get(id);
+                IEntity result = entity.Get(id);
 
                 // Build up the response to return
                 msg = entity.GetResponse();
                 response = msg.CreateResponse(result);
+            } else {
+
+                // Get the JSON string from the body
+                string json = await new StreamReader(req.Body).ReadToEndAsync();
+
+                // Peform checks on the paylod to ensure that it is not not null and is valid JSON
+                if (String.IsNullOrWhiteSpace(json))
+                {
+                    msg.SetError("Body of request must not be empty", true, HttpStatusCode.BadRequest);
+                }
+                else if (!IsValidJson(json))
+                {
+                    msg.SetError("Body of request must contain valid JSON data", true, HttpStatusCode.BadRequest);
+                }
+                else
+                {
+
+                    // Parse the json
+                    entity.Parse(json);
+
+                    // Determine if there are any errors in the parse
+                    msg = entity.GetResponse();
+                    if (!msg.IsError())
+                    {
+                        bool status = await entity.Insert();
+
+                        msg = entity.GetResponse();
+                    }
+                }
+
+                response = msg.CreateResponse();
+
             }
 
             return response;
+        }
+
+        private static bool VaidatePayload(string data)
+        {
+            // Define method variables
+            bool valid = true;
+
+            // determmine if the data is a null string
+ 
+
+            return valid;
         }
 
         private static bool IsValidJson(string payload)

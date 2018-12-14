@@ -1,11 +1,13 @@
 using Microsoft.Azure.Documents;
 using Microsoft.Azure.Documents.Client;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
 using System.Collections;
 using System.Collections.Generic;
 using System;
 using System.Linq;
 using System.Net;
+using System.Reflection;
 using System.Threading.Tasks;
 
 
@@ -18,9 +20,10 @@ namespace Azure.Reaper {
     protected DocumentClient client;
     private string databaseId = "reaper";
     protected Uri collectionLink;
+    protected Uri databaseLink;
     protected string[] criteriaFields;
     protected ILogger logger;
-    protected ResponseMessage response;
+    protected ResponseMessage response = new ResponseMessage();
 
     public string id;
 
@@ -62,8 +65,21 @@ namespace Azure.Reaper {
       return response;
     }
 
+    public void Parse(string json)
+    {
+      // Attempt to deserialise the json into a List of objects
+      items = JsonConvert.DeserializeObject<List<T>>(json);
+
+      // determine if any items have been set
+      if (items.Count == 0)
+      {
+        response.SetError("An array of items is exepected", true, HttpStatusCode.BadRequest);
+      }
+    }
+
     private void SetCollectionLink()
     {
+      databaseLink = UriFactory.CreateDatabaseUri(databaseId);
       collectionLink = UriFactory.CreateDocumentCollectionUri(databaseId, collectionName);
     }
 
@@ -120,6 +136,208 @@ namespace Azure.Reaper {
       // Return the sql statement to the calling function
       return sqlStatement;
     }
+
+    public IEnumerator<T> GetEnumerator()
+    {
+      return items.GetEnumerator();
+    }
+
+    public async Task<bool> Insert()
+    {
+      // create variable to determine how many items are in error
+      bool status = false;
+      int errorItems = 0;
+
+      // Iterate around the items checking the schema
+      foreach (var item in items)
+      {
+        bool valid = IsSchemaValid(item, false);
+        if (!valid)
+        {
+          errorItems ++;
+        }
+      }
+
+      // if there are error items, set an error to retiurn
+      if (errorItems > 0)
+      {
+        response.SetError(
+          String.Format(
+            "There are {0} item(s) that do not conform to the schema for this type",
+            errorItems
+          ),
+          true,
+          HttpStatusCode.BadRequest
+        );
+      }
+      else
+      {
+        // Set the collection link for where the document needs to be stored
+        SetCollectionLink();
+
+        // Initialise counters
+        int updated = 0;
+        int created = 0;
+
+        // Ensure that the database and the collection exist
+        bool databaseExists = await CreateDatabase();
+        bool collectionExists = await CreateDocumentCollection();
+
+        // if the collection exists attempt to add the document
+        if (collectionExists)
+        {
+          // Iterate around the items to determine if any already exist
+          foreach (IEntity item in items)
+          {
+            // call the get method to determine if the item exists or not
+            IEntity exists = Get(item.name);
+
+            // if the exists is null add the item
+            if (exists == null)
+            {
+              logger.LogInformation("Item does not exist");
+              await client.CreateDocumentAsync(collectionLink, item);
+
+              // update the created count
+              created ++;
+            }
+            else
+            {
+              logger.LogInformation("Item needs to be updated");
+              await client.UpsertDocumentAsync(collectionLink, item);
+
+              // update the updated count
+              updated ++;
+            }
+          }
+
+          // Set the repsonse message and the status code
+          response.SetMessage(String.Format("{0} documents created, {1} documents updated", created.ToString(), updated.ToString()));
+          response.SetStatusCode(HttpStatusCode.Created);
+          response.SetError(false);
+        }
+
+      }
+
+      return status;
+    }
+
+    private bool IsSchemaValid(dynamic obj, bool update)
+    {
+      // set the valid flag
+      bool valid = false;
+
+      // Get all the public properties of the class
+      PropertyInfo[] publicProps = obj.GetType().GetProperties();
+
+      // Define array to state which values are incorrect
+      ArrayList notValid = new ArrayList();
+
+      // if this is an update then ensure that the name is set
+      if (update)
+      {
+        if (String.IsNullOrEmpty(obj.name))
+        {
+          notValid.Add("name");
+        }
+      }
+      else
+      {
+        // iterate around all of the properties and ensure that the
+        // properties have been set as this is a new item
+        foreach (var prop in publicProps)
+        {
+          // get the type of the property so that the relevant check can be performed
+          // Ensure that the value is not null
+          if (prop.GetValue(obj) == null)
+          {
+            logger.LogDebug("Property '{0}' is invalid", prop.Name);
+            notValid.Add(prop.Name);
+          }
+        }
+      }
+
+      // if there are no items in notValid set the valid to true
+      // else set an error
+      if (notValid.Count == 0)
+      {
+        valid = true;
+      }
+
+      return valid;
+    }
+
+    private async Task<bool> CreateDatabase()
+    {
+      // Set flag for the status of the operation
+      bool status = true;
+
+      // Ensure that the database exists
+      try
+      {
+        logger.LogDebug("Checking database exists: {0}", databaseId);
+        await client.ReadDatabaseAsync(databaseLink);
+      }
+      catch (DocumentClientException exception)
+      {
+        // if the database cannot be found create it
+        if (exception.StatusCode == HttpStatusCode.NotFound)
+        {
+          logger.LogInformation("Creating database: {0}", databaseId);
+          await client.CreateDatabaseAsync(
+            new Database { Id = databaseId }
+          );
+        }
+        else
+        {
+          logger.LogError("Issue reading database: {0}", exception.Message);
+          response.SetError(String.Format("There was a problem with the database: {0}", databaseId), true, HttpStatusCode.InternalServerError);
+          status = false;
+        }
+      }
+
+      return status;
+    }
+
+    private async Task<bool> CreateDocumentCollection()
+    {
+      // Set flag for the status of the operation
+      bool status = true;
+
+      // Ensure that the database exists
+      try
+      {
+        logger.LogDebug("Checking collection exists: {0}", collectionName);
+        await client.ReadDocumentCollectionAsync(collectionLink);
+      }
+      catch (DocumentClientException exception)
+      {
+        // if the database cannot be found create it
+        if (exception.StatusCode == HttpStatusCode.NotFound)
+        {
+          logger.LogInformation("Creating collection: {0}", collectionName);
+          await client.CreateDocumentCollectionAsync(
+            databaseLink,
+            new DocumentCollection { Id = collectionName }
+          );
+        }
+        else
+        {
+          logger.LogError("Issue reading collection: {0}", exception.Message);
+          response.SetError(String.Format("There was a problem with the collection: {0}", collectionName), true, HttpStatusCode.InternalServerError);
+          status = false;
+        }
+      }
+
+      return status;
+    }
+
+    protected void SetLogger(ILogger logger)
+    {
+      this.logger = logger;
+    }
   }
+
+
 
 }
