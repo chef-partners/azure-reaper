@@ -30,5 +30,21 @@ namespace Azure.Reaper
       this.logger = log;
     }
   
+    public void Update(
+      string subscriptionId,
+      string groupName,
+      string type,
+      string name = null
+    )
+    {
+      this.subscription = subscriptionId;
+      this.group_name = group_name;
+      this.name = name;
+      this.type = type;
+      this.last_notified = DateTime.UtcNow;
+
+
+      this.Insert();
+    }
   }
 }

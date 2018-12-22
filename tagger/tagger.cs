@@ -15,7 +15,10 @@ namespace Azure.Reaper
 
         [FunctionName("tagger")]
         public static void Run(
-            [QueueTrigger("logalertqueue", Connection = "AzureWebJobsStorage")]JObject alertItem,
+            [QueueTrigger(
+                "logalertqueue",
+                Connection = "AzureWebJobsStorage"
+            )] ActivityLog activityLog,
             [CosmosDB(
                 ConnectionStringSetting = "azreaper_DOCUMENTDB",
                 CreateIfNotExists = true
@@ -24,6 +27,59 @@ namespace Azure.Reaper
         )
         {
 
+            // Determine if a resource group has been created
+            if (activityLog.IsCreated())
+            {
+                log.LogInformation("Considering Resource Group: {0}", activityLog.resourceGroupName);
+
+                // Search for the credentials for the subscriptionId recieved
+                Subscription sub = new Subscription(client, log);
+                Subscription subscription = (Subscription) sub.Get(activityLog.subscriptionId);
+
+                // If a subscription has been found process
+                if (subscription == null)
+                {
+                    log.LogWarning("Credentials for Subscription cannot be found: {0}", activityLog.subscriptionId);
+                }
+                else if (!subscription.enabled)
+                {
+                    log.LogWarning("Subscription has been disabled: {0} ({1})", subscription.name, (string) subscription.subscription_id);
+                }
+                else
+                {
+                    // Login to Azure and get an azure object to work with
+                    IAzure azure = Utilities.AzureLogin(
+                        subscription,
+                        AzureEnvironment.AzureGlobalCloud,
+                        log
+                    );
+
+                    // If the subscription contains a resource group with the specified name, create
+                    // a resourcegroup object to work with
+                    if (azure.ResourceGroups.Contain(activityLog.resourceGroupName))
+                    {
+                        // Get the tag settings
+                        Setting setting = new Setting(client, log);
+                        IEnumerable<Setting> settings = setting.GetAllByCategory(new string[] {"tags"});
+
+                        // Retrieve the resource group object
+                        IResourceGroup resourceGroup = azure.ResourceGroups.GetByName(activityLog.resourceGroupName);
+                        ResourceGroup rg = new ResourceGroup(
+                            resourceGroup,
+                            log,
+                            settings,
+                            activityLog
+                        );
+
+                        // Add the tags that are required for the reaper to function
+                        rg.AddDefaultTags();
+                    }
+                    else
+                    {
+                        log.LogWarning("{0}: Cannot find resource group in subscription - {1}", activityLog.resourceGroupName, (string) subscription.subscription_id);
+                    }
+                }
+            }
         }
     }
 }

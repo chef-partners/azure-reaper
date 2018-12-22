@@ -1,6 +1,7 @@
 using Microsoft.Azure.Documents.Client;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using System.Linq;
 
 namespace Azure.Reaper
 {
@@ -30,5 +31,9 @@ namespace Azure.Reaper
       this.logger = log;
     }
   
+    public dynamic GetItem(string name)
+    {
+      return items.First(i => i.name == name).value;
+    }
   }
 }

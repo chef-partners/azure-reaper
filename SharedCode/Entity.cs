@@ -29,7 +29,6 @@ namespace Azure.Reaper {
 
     public IEntity Get(dynamic identifier, bool first = true)
     {
-      IEnumerable<IEntity> result = null;
       IEntity doc = null;
 
       // Set the collection link to perform the search
@@ -38,6 +37,77 @@ namespace Azure.Reaper {
       // Get the SQL statement to execute
       string sqlStatement = BuildSQLStatement(identifier);
 
+      doc = GetData(sqlStatement, first);
+
+      return doc;
+    }
+
+    public IEntity Get(dynamic[] identifiers, string[] fields, bool first = true)
+    {
+      IEntity doc = null;
+
+      // Set the collection link to perform the search
+      SetCollectionLink();
+
+      // Get the SQL statement to execute
+      string sqlStatement = BuildSQLStatement(identifiers, fields);
+
+      doc = GetData(sqlStatement, first);
+
+      return doc;      
+    }
+
+    public dynamic GetAllByCategory(string[] categories)
+    {
+      IEnumerable<IEntity> result = null;
+
+      SetCollectionLink();
+
+      // Build the sql statement
+      string sqlStatement = String.Format(
+        "SELECT * FROM {0} t WHERE t.category IN ('{1}')",
+        collectionName,
+        string.Join("', '", categories)
+      );
+
+      result = GetData(sqlStatement, false);
+
+      return result;
+    }
+
+    public dynamic GetAll()
+    {
+      IEnumerable<IEntity> result = null;
+
+      SetCollectionLink();
+
+      // Build the sql statement
+      string sqlStatement = String.Format(
+        "SELECT * FROM {0}",
+        collectionName
+      );
+
+      result = GetData(sqlStatement, false);
+
+      return result;
+    }
+
+    public dynamic GetUsingSQL(string sqlStatement)
+    {
+      IEnumerable<IEntity> result = null;
+
+      SetCollectionLink();
+
+      result = GetData(sqlStatement, false);
+
+      return result;      
+    } 
+
+    private dynamic GetData(string sqlStatement, bool first = true)
+    {
+      IEnumerable<IEntity> result = null;
+      IEntity doc = null;
+
       // Execute the query
       // Get the name of the class so that the query can deseralize into the correct objects
       if (this is Setting)
@@ -45,6 +115,21 @@ namespace Azure.Reaper {
           result = client.CreateDocumentQuery<Setting>(collectionLink, sqlStatement)
                       .AsEnumerable();
       }
+      else if (this is Subscription)
+      {
+        result = client.CreateDocumentQuery<Subscription>(collectionLink, sqlStatement)
+                      .AsEnumerable();
+      }
+      else if (this is LocationTZ)
+      {
+        result = client.CreateDocumentQuery<LocationTZ>(collectionLink, sqlStatement)
+                      .AsEnumerable();
+      }    
+      else if (this is NotificationDelay)
+      {
+        result = client.CreateDocumentQuery<NotificationDelay>(collectionLink, sqlStatement)
+                      .AsEnumerable();
+      }            
 
       // If no items have been found set the response
       if (Enumerable.Count(result) == 0)
@@ -55,6 +140,10 @@ namespace Azure.Reaper {
       {
         // As only one document has been found, return that
         doc = Enumerable.First(result);
+      }
+      else
+      {
+        return result;
       }
 
       return doc;
@@ -83,7 +172,7 @@ namespace Azure.Reaper {
       collectionLink = UriFactory.CreateDocumentCollectionUri(databaseId, collectionName);
     }
 
-    private string BuildSQLStatement(dynamic identifier)
+    private string BuildSQLStatement(dynamic identifier, dynamic fields = null)
     {
       // Initialise an array to hold the criteria for the statement
       ArrayList criteria = new ArrayList();
@@ -96,8 +185,14 @@ namespace Azure.Reaper {
       {
         joinOperator = "AND";
 
+        // if the fields is null, use criteria fields
+        if (fields == null)
+        {
+          fields = criteriaFields;
+        }
+
         // iterate around the fields and set the corresponding value in the identifier array
-        for (int i = 0; i < identifier.Count; i ++)
+        for (int i = 0; i < identifier.Length; i ++)
         {
           if (identifier[i] is bool || identifier[i] is int)
           {

@@ -55,6 +55,12 @@ namespace Azure.Reaper
                     entity = new Subscription(client, log);
                     break;
 
+                case "reaper":
+                    Reaper reaper = new Reaper();
+                    bool status = await reaper.Process(client, log);
+                    msg = new ResponseMessage("Reaper executed", false, HttpStatusCode.OK);
+                    return msg.CreateResponse();
+
                 default:
                     msg = new ResponseMessage(String.Format("Specified optype is not recognised: {0}", optype), true, HttpStatusCode.NotFound);
                     return msg.CreateResponse();
