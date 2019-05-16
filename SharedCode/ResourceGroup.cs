@@ -22,7 +22,7 @@ namespace Azure.Reaper
     public string message;
     public string level;
     private DateTime timeNowUtc;
-    private ActivityLog activityLog;
+    private ActivityAlert activityLog;
 
     public ResourceGroup(
       IResourceGroup resourceGroup,
@@ -47,7 +47,7 @@ namespace Azure.Reaper
       IResourceGroup resourceGroup,
       ILogger logger,
       IEnumerable<Setting> settings,
-      ActivityLog activityLog
+      ActivityAlert activityLog
     )
     {
       this.resourceGroup = resourceGroup;
@@ -66,7 +66,7 @@ namespace Azure.Reaper
 
       if (resourceGroup.Tags == null)
       {
-        logger.LogInformation("{0}: No tags have been set", resourceGroup.Name);
+        logger.LogInformation("action=hasTags, resource_group={resourceGroup}, message=No tags have been set", resourceGroup.Name);
       }
       else
       {
@@ -87,14 +87,17 @@ namespace Azure.Reaper
       // ensure that the group has tags
       result = HasTags();
 
+      // Get the inUse tag from settings
+      string inUseTag = settings.First(s => s.name == "tag_inuse").value;
+
       // If the tags include InUse attempt tp convert it and then perform the test
-      if (result && resourceGroup.Tags.ContainsKey("InUse"))
+      if (result && resourceGroup.Tags.ContainsKey(inUseTag))
       {
-        bool inUse = Convert.ToBoolean(resourceGroup.Tags["InUse"]);
+        bool inUse = Convert.ToBoolean(resourceGroup.Tags[inUseTag]);
 
         if (inUse)
         {
-          logger.LogInformation("{0}: Group is in use", resourceGroup.Name);
+          logger.LogInformation("action=inUse, resource_group={resourceGroup}, message=Group is in use", resourceGroup.Name);
           result = true;
         }
 
@@ -158,7 +161,7 @@ namespace Azure.Reaper
       bool result = false;
       string tagName =  settings.First(s => s.name == name).value;
 
-      if (resourceGroup.Tags.ContainsKey(tagName))
+      if (resourceGroup.Tags != null && resourceGroup.Tags.ContainsKey(tagName))
       {
         result = true;
       }
@@ -203,7 +206,7 @@ namespace Azure.Reaper
         // if the list is not empty and the email address is not in the list, set the result to false
         if (emailAddresses.Count > 0 && !emailAddresses.Contains((string) emailAddress))
         {
-          logger.LogInformation("Notifications are currently disabled for: {0}", (string) emailAddress);
+          logger.LogInformation("action=isMember, owner={owner}, message=Notifications are currently disabled", (string) emailAddress);
           result = false;
         }
       }
@@ -235,7 +238,7 @@ namespace Azure.Reaper
       if (previousNotification != null)
       {
         int elapsed = (DateTime.UtcNow - previousNotification.last_notified).Seconds;
-        result = elapsed > (int) settings.First(s => s.name == "notify_delay").value;
+        result = elapsed > (int) settings.First(s => s.name == "notify_delay_rg").value;
 
         if (result)
         {
@@ -305,14 +308,14 @@ namespace Azure.Reaper
 
     public void AddDefaultTags()
     {
-      dynamic valueOfTag;
+      bool hasTag;
       string nameOfTag;
       bool update = false;
 
       // Create a dictionary of the group tags
       Dictionary<string, string> groupTags;
 
-      logger.LogInformation("{0}: Adding default tags to resource group", GetName());
+      logger.LogInformation("action=defaultTags, resource_group={resourceGroup}, message=Adding default tags to resource group", GetName());
 
       // Determine if the group has any tags, if not create them
       // Otherwise retrieve them from the group so they cxan be updated
@@ -333,23 +336,28 @@ namespace Azure.Reaper
       {
 
         // Determine if the tag_owner tag is present
-        valueOfTag = HasTag(compulsoryTag);
+        hasTag = HasTag(compulsoryTag);
         nameOfTag = settings.First(s => s.name == compulsoryTag).value;
-        if (!valueOfTag)
+        if (!hasTag)
         {
           // Get the value from the ActivityLog
           string value = activityLog.GetValue(compulsoryTag);
 
-          logger.LogInformation("{0}: Adding '{1}' tag", nameOfTag);
-          groupTags.Add(nameOfTag, value);
-          update = true;
+          if (String.IsNullOrEmpty(value)) {
+            logger.LogWarning("action=addTag, resource_group={resourceGroup}, tag_name={tagName}, message=Unable to add tag as value is null", GetName(), nameOfTag);
+          } else {
+            logger.LogInformation("action=addTag, resource_group={resourceGroup}, tag_name={tagName}, value={value}", GetName(), nameOfTag, value);
+            groupTags.Add(nameOfTag, value);
+            update = true;
+          }
+          
         }
       }
 
       // Update the resource group, if additions have been made
       if (update)
       {
-        logger.LogInformation("{0}: updating", GetName());
+        logger.LogInformation("action=update, resource_group={resourceGroup}", GetName());
         resourceGroup.Update().WithTags(groupTags).Apply();
       }
     }

@@ -109,14 +109,14 @@ namespace Azure.Reaper
 
         if (isRunning && !permitted && manage_vm)
         {
-          logger.LogInformation("{0} - {1}: Stopping virtual machine", resourceGroup.GetName(), GetName());
+          logger.LogInformation("action=stop, resource_group={resourceGroup}, vm_name={vmName}, message=Stop machine", resourceGroup.GetName(), GetName());
           virtualMachine.Deallocate();
           status = Status.Stopped;
         }
 
         if (!isRunning && permitted && manage_vm)
         {
-          logger.LogInformation("{0} - {1}: Starting virtual machine", resourceGroup.GetName(), GetName());
+          logger.LogInformation("action=start, resource_group={resourceGroup}, vm_name={vmName}, message=Start machine", resourceGroup.GetName(), GetName());
           virtualMachine.Start();
           status = Status.Started;
         }
@@ -198,6 +198,20 @@ namespace Azure.Reaper
           logger.LogError("{0}: VM Schedule tag has an invalid format - '{1}'", resourceGroup.GetName(), (string) tagSchedule);
         }
       }
+    }
+
+    public string GetTag(string name)
+    {
+      string result = String.Empty;
+
+      // Determine that the tag exists
+      if (HasTag(name))
+      {
+        string tagName =  settings.First(s => s.name == name).value;
+        result = virtualMachine.Tags[tagName];
+      }
+
+      return result;
     }
 
     /// <summary>
@@ -289,7 +303,7 @@ namespace Azure.Reaper
       if (previousNotification != null)
       {
         int elapsed = (DateTime.UtcNow - previousNotification.last_notified).Seconds;
-        result = elapsed > (int) settings.First(s => s.name == "notify_delay").value;
+        result = elapsed > (int) settings.First(s => s.name == "notify_delay_vm").value;
 
         if (result)
         {

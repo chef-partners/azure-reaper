@@ -1,0 +1,19 @@
+figcaption {
+
+  padding-bottom:12px;
+  padding-top:6px;
+  max-width: 90%;
+  margin-bottom:20px;
+  font-style: italic;
+  color: gray;
+
+}
+
+.summary {
+  font-size:120%;
+  color: #808080;
+  margin:20px 0px 20px 0px;
+  border-left: 5px solid #ED1951;
+  padding-left: 10px;
+
+}

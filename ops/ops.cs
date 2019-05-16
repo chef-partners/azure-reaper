@@ -12,6 +12,7 @@ using System.Net.Http;
 using Microsoft.Azure.Documents.Client;
 using System.Net;
 using Newtonsoft.Json.Linq;
+using System.Collections.Generic;
 
 namespace Azure.Reaper
 {
@@ -69,12 +70,19 @@ namespace Azure.Reaper
             // As this is a REST API use the HTTP Method to determine what is required
             if (req.Method == "GET")
             {
-                // Set the identifier on the entity so that a search can be performed
-                IEntity result = entity.Get(id);
+                if (String.IsNullOrEmpty(id)) {
+                    IEnumerable<IEntity> result = entity.GetAll();
 
-                // Build up the response to return
-                msg = entity.GetResponse();
-                response = msg.CreateResponse(result);
+                    msg = entity.GetResponse();
+                    response = msg.CreateResponse(result);                    
+                } else {
+                    // Set the identifier on the entity so that a search can be performed
+                    IEntity result = entity.Get(id);
+
+                    // Build up the response to return
+                    msg = entity.GetResponse();
+                    response = msg.CreateResponse(result);
+                }
             } else {
 
                 // Get the JSON string from the body

@@ -18,7 +18,7 @@ namespace Azure.Reaper
             [QueueTrigger(
                 "logalertqueue",
                 Connection = "AzureWebJobsStorage"
-            )] ActivityLog activityLog,
+            )] ActivityAlert activityLog,
             [CosmosDB(
                 ConnectionStringSetting = "azreaper_DOCUMENTDB",
                 CreateIfNotExists = true
@@ -30,16 +30,16 @@ namespace Azure.Reaper
             // Determine if a resource group has been created
             if (activityLog.IsCreated())
             {
-                log.LogInformation("Considering Resource Group: {0}", activityLog.resourceGroupName);
+                log.LogInformation("Considering Resource Group: {0}", activityLog.GetResourceGroupName());
 
                 // Search for the credentials for the subscriptionId recieved
                 Subscription sub = new Subscription(client, log);
-                Subscription subscription = (Subscription) sub.Get(activityLog.subscriptionId);
+                Subscription subscription = (Subscription) sub.Get(activityLog.GetSubscriptionId());
 
                 // If a subscription has been found process
                 if (subscription == null)
                 {
-                    log.LogWarning("Credentials for Subscription cannot be found: {0}", activityLog.subscriptionId);
+                    log.LogWarning("Credentials for Subscription cannot be found: {0}", activityLog.GetSubscriptionId());
                 }
                 else if (!subscription.enabled)
                 {
@@ -56,14 +56,14 @@ namespace Azure.Reaper
 
                     // If the subscription contains a resource group with the specified name, create
                     // a resourcegroup object to work with
-                    if (azure.ResourceGroups.Contain(activityLog.resourceGroupName))
+                    if (azure.ResourceGroups.Contain(activityLog.GetResourceGroupName()))
                     {
                         // Get the tag settings
                         Setting setting = new Setting(client, log);
                         IEnumerable<Setting> settings = setting.GetAllByCategory(new string[] {"tags"});
 
                         // Retrieve the resource group object
-                        IResourceGroup resourceGroup = azure.ResourceGroups.GetByName(activityLog.resourceGroupName);
+                        IResourceGroup resourceGroup = azure.ResourceGroups.GetByName(activityLog.GetResourceGroupName());
                         ResourceGroup rg = new ResourceGroup(
                             resourceGroup,
                             log,
@@ -76,7 +76,7 @@ namespace Azure.Reaper
                     }
                     else
                     {
-                        log.LogWarning("{0}: Cannot find resource group in subscription - {1}", activityLog.resourceGroupName, (string) subscription.subscription_id);
+                        log.LogWarning("{0}: Cannot find resource group in subscription - {1}", activityLog.GetResourceGroupName(), (string) subscription.subscription_id);
                     }
                 }
             }

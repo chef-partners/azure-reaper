@@ -22,25 +22,32 @@
   },
   {
     "name": "tag_vm_start_stop_time",
-    "value": "STARTSTOPTIME",
+    "value": "startStopTime",
     "category": "tags",
     "display_name": "VM Start Stop Time",
     "description": "Start and stop times for a VM. This should be in the format '<HH:mm> - <HH:mm>'"
   },
   {
     "name": "tag_timezone",
-    "value": "TIMEZONE",
+    "value": "timezone",
     "category": "tags",
     "display_name": "Timezone",
     "description": "Timezone that the resource should be measured against"
   },
   {
     "name": "tag_days_of_week",
-    "value": "DAYSOFWEEK",
+    "value": "daysOfWeek",
     "category": "tags",
     "display_name": "Days of Week",
     "description": "Days of the week that a VM is permitted to run. 0 - Sunday, 1 - Monday etc"
-  },  
+  },
+  {
+    "name": "tag_inuse",
+    "value": "inUse",
+    "category": "tags",
+    "display_name": "In Use",
+    "description": "Tag that specifies that a resource is in use and should not be considered by the Reaper"
+  },    
   {
     "name": "duration",
     "value": 7.0,
@@ -126,10 +133,17 @@
     "description": "State if Reaper is permitted to send Slack notifications"
   },
   {
-    "name": "notify_delay",
+    "name": "notify_delay_rg",
     "value": 86400,
     "category": "lifecycle",
-    "display_name": "Notification Delay",
+    "display_name": "RG Notification Delay",
+    "description": "Delay between notifing owners of shutdown or deletion"
+  },
+  {
+    "name": "notify_delay_vm",
+    "value": 3600,
+    "category": "lifecycle",
+    "display_name": "VM Notification Delay",
     "description": "Delay between notifing owners of shutdown or deletion"
   }
 ]
