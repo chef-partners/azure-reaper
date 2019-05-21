@@ -20,13 +20,14 @@ namespace Azure.Reaper
         // Define class prpoerties
         private ILogger logger;
 
-        public async Task<bool> Process(DocumentClient client, ILogger log)
+        public async Task<bool> Process(DocumentClient client, ILogger log, string id = null)
         {
 
             logger = log;
 
             bool error = false;
             Uri webhook_url = null;
+            string pretext = null;
 
             // Create a list of resource group candiates that may be deleted
             List<string> resource_group_candidates = new List<string>();
@@ -106,6 +107,15 @@ namespace Azure.Reaper
                     foreach (IResourceGroup resource_group in resource_groups)
                     {
 
+                        pretext = null;
+
+                        // if the id is not null check the name and skip if the current is not the right one
+                        if (!String.IsNullOrEmpty(id)) {
+                            if (resource_group.Name != id) {
+                                continue;
+                            }
+                        }
+
                         ResourceGroup rg = new ResourceGroup(
                             resource_group,
                             log,
@@ -116,22 +126,28 @@ namespace Azure.Reaper
                             timeNowUtc
                         );
 
+                        log.LogInformation("action=reaper, resource_group={resourceGroup}, message=Considering group", resource_group.Name);
+
                         // Determine if the resource group has expired or not
                         bool notify = rg.ShouldNotify();
                         bool expired = rg.ShouldDelete();
 
-                        // if resource group has expired delete it
+                        // if notify is set, send a slack message
                         if (notify)
                         {
                             // Attempt to get the slack userid for the email address
-                            slackClient.GetUserIdByEmail(rg.emailAddress);
+                            await slackClient.GetUserIdByEmail(rg.emailAddress);
 
                             // Set the properties of the slack message
                             slackClient.AddField("Name", resource_group.Name);
                             slackClient.AddField("Expiry Date", rg.expiryDate.ToString("yyyy-MM-ddTHH:mm:ss"));
 
+                            if (rg.HasTag("tag_alert")) {
+                                pretext = "Notification triggered as Resource Group has been tagged with the Alert tag";
+                            }
+
                             // Add the message to the slack client
-                            slackClient.AddAttachmentItem(rg.message, rg.level);
+                            slackClient.AddAttachmentItem(rg.message, rg.level, pretext);
 
                             // Send the slack message
                             response = await slackClient.SendMessageAsync();
@@ -189,10 +205,11 @@ namespace Azure.Reaper
 
                                 // Add a notification for this machine
                                 notificationDelay.Update(sub.subscription_id, resource_group.Name, "virtualMachine", virtualMachine.GetName());
+                                
                             }
 
                             // only send out messages for VMs if there are some
-                            if (vms.Count() > 0 && (started.Count > 0 || stopped.Count > 0))
+                            if (vms.Count() > 0 && (started.Count > 0 || stopped.Count > 0) && notify)
                             {
 
                                 // Define the properties of the slack message to send

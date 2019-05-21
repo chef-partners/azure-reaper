@@ -107,17 +107,25 @@ namespace Azure.Reaper
         // Perform checks to see if this machine should be running
         bool permitted = ShouldBeRunning();
 
-        if (isRunning && !permitted && manage_vm)
+        if (isRunning && !permitted)
         {
-          logger.LogInformation("action=stop, resource_group={resourceGroup}, vm_name={vmName}, message=Stop machine", resourceGroup.GetName(), GetName());
-          virtualMachine.Deallocate();
+          logger.LogInformation("action=stop, resource_group={resourceGroup}, vm_name={vmName}, manage_vm={manage_vm}, message=Stop machine", resourceGroup.GetName(), GetName(), manage_vm.ToString());
+
+          if (manage_vm) {
+            virtualMachine.Deallocate();
+          }
+
           status = Status.Stopped;
         }
 
-        if (!isRunning && permitted && manage_vm)
+        if (!isRunning && permitted)
         {
-          logger.LogInformation("action=start, resource_group={resourceGroup}, vm_name={vmName}, message=Start machine", resourceGroup.GetName(), GetName());
-          virtualMachine.Start();
+          logger.LogInformation("action=start, resource_group={resourceGroup}, vm_name={vmName}, manage_vm={manage_vm}, message=Start machine", resourceGroup.GetName(), GetName(), manage_vm.ToString());
+
+          if (manage_vm) {
+            virtualMachine.Start();
+          }
+
           status = Status.Started;
         }
       }

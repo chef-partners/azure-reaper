@@ -58,7 +58,7 @@ namespace Azure.Reaper
 
                 case "reaper":
                     Reaper reaper = new Reaper();
-                    bool status = await reaper.Process(client, log);
+                    bool status = await reaper.Process(client, log, id);
                     msg = new ResponseMessage("Reaper executed", false, HttpStatusCode.OK);
                     return msg.CreateResponse();
 

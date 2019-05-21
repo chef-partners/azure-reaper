@@ -131,19 +131,23 @@ namespace Azure.Reaper {
                       .AsEnumerable();
       }            
 
-      // If no items have been found set the response
-      if (Enumerable.Count(result) == 0)
-      {
-        response.SetError("Unable to find item", true, HttpStatusCode.NotFound);
-      }
-      else if (Enumerable.Count(result) == 1 && first)
-      {
-        // As only one document has been found, return that
-        doc = Enumerable.First(result);
-      }
-      else
-      {
-        return result;
+      try {
+        // If no items have been found set the response
+        if (Enumerable.Count(result) == 0)
+        {
+          response.SetError("Unable to find item", true, HttpStatusCode.NotFound);
+        }
+        else if (first) //(Enumerable.Count(result) == 1 && first)
+        {
+          // As only one document has been found, return that
+          doc = Enumerable.First(result);
+        }
+        else
+        {
+          return result;
+        }
+      } catch (Exception e) {
+        logger.LogCritical("Error retrieving data: {0}", e.Message);
       }
 
       return doc;
@@ -180,34 +184,34 @@ namespace Azure.Reaper {
       // Set the operator that will join the criteria together
       string joinOperator;
 
+      // if the fields is null, use criteria fields
+      if (fields == null)
+      {
+        fields = criteriaFields;
+      }
+
       // Iterate around the criteria fields that are set on the class
       if ((identifier.GetType()).IsArray)
       {
         joinOperator = "AND";
-
-        // if the fields is null, use criteria fields
-        if (fields == null)
-        {
-          fields = criteriaFields;
-        }
 
         // iterate around the fields and set the corresponding value in the identifier array
         for (int i = 0; i < identifier.Length; i ++)
         {
           if (identifier[i] is bool || identifier[i] is int)
           {
-            criteria.Add(String.Format("t.{0} = {1}", criteriaFields[i], identifier[i]));
+            criteria.Add(String.Format("t.{0} = {1}", fields[i], identifier[i]));
           }
           else if (identifier[i] is string)
           {
-            criteria.Add(String.Format("t.{0} = '{1}'", criteriaFields[i], identifier[i]));
+            criteria.Add(String.Format("t.{0} = '{1}'", fields[i], identifier[i]));
           }          
         }
       }
       else
       {
         joinOperator = "OR";
-        foreach (string field in criteriaFields)
+        foreach (string field in fields)
         {
           // If the identifier is a single entity, e.g. not an array ensure that
           // all criteria is set to the same value
@@ -290,7 +294,7 @@ namespace Azure.Reaper {
             // if the exists is null add the item
             if (exists == null)
             {
-              logger.LogInformation("Item does not exist");
+              logger.LogInformation("action=insert, item_type={itemType}, item_name={itemName}, message=Item does not exist", item.GetType().Name, item.name);
               await client.CreateDocumentAsync(collectionLink, item);
 
               // update the created count
@@ -298,7 +302,7 @@ namespace Azure.Reaper {
             }
             else
             {
-              logger.LogInformation("Item needs to be updated");
+              logger.LogInformation("action=insert, item_type={itemType}, item_name={itemName}, message=Item needs to be updated", item.GetType().Name, item.name);
               await client.UpsertDocumentAsync(collectionLink, item);
 
               // update the updated count
@@ -400,28 +404,16 @@ namespace Azure.Reaper {
       bool status = true;
 
       // Ensure that the database exists
-      try
-      {
-        logger.LogDebug("Checking collection exists: {0}", collectionName);
-        await client.ReadDocumentCollectionAsync(collectionLink);
-      }
-      catch (DocumentClientException exception)
-      {
-        // if the database cannot be found create it
-        if (exception.StatusCode == HttpStatusCode.NotFound)
-        {
-          logger.LogInformation("Creating collection: {0}", collectionName);
-          await client.CreateDocumentCollectionAsync(
-            databaseLink,
-            new DocumentCollection { Id = collectionName }
-          );
-        }
-        else
-        {
-          logger.LogError("Issue reading collection: {0}", exception.Message);
+      try {
+        logger.LogInformation("Checking collection exists: {0}", collectionName);
+        await client.CreateDocumentCollectionIfNotExistsAsync(
+          databaseLink, 
+          new DocumentCollection { Id = collectionName }
+        );
+      } catch (DocumentClientException exception) {
+          logger.LogError("Issue creating collection: {0}", exception.Message);
           response.SetError(String.Format("There was a problem with the collection: {0}", collectionName), true, HttpStatusCode.InternalServerError);
           status = false;
-        }
       }
 
       return status;

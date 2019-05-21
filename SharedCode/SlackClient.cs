@@ -40,6 +40,9 @@ namespace Azure.Reaper
             _token = token;
             _log = log;
             this.enabled = enabled;
+
+            fields = new ArrayList();
+            attachments = new ArrayList();
         }
 
         public async Task<HttpResponseMessage> SendMessageAsync()
@@ -50,7 +53,7 @@ namespace Azure.Reaper
             if (!String.IsNullOrEmpty(slackUserId) && enabled)
             {
                 // Set the Slack endpoint
-                UriBuilder builder =  new UriBuilder("Https://slack.com/api/chef.postMessage");
+                UriBuilder builder =  new UriBuilder("Https://slack.com/api/chat.postMessage");
 
                 // Create the payload to send to slack
                 var payload = new
@@ -83,9 +86,27 @@ namespace Azure.Reaper
             return response;
         }
 
-        public async void GetUserIdByEmail(string email)
+        public async Task GetUserIdByEmail(string email)
         {
 
+            // get the skack id
+            string result = await getSlackId(email);
+
+            // Get the id of the user with the email address
+            JObject s = JObject.Parse(result);
+
+            if ((bool)s["ok"])
+            {
+                slackUserId = (string)s["user"]["id"];
+            }
+        }
+
+        // Create private function so that the results can be awaited on
+        // This should then make the email address available on the class
+        // https://stackoverflow.com/questions/26597665/how-to-get-content-body-from-a-httpclient-call
+
+        private async Task<string> getSlackId(string email)
+        {
             // Define the URL that needs to be accessed
             UriBuilder builder = new UriBuilder("https://slack.com/api/users.lookupByEmail");
 
@@ -101,16 +122,11 @@ namespace Azure.Reaper
             var response = await _httpClient.GetAsync(builder.ToString());
             var result = response.Content.ReadAsStringAsync().Result;
 
-            // Get the id of the user with the email address
-            JObject s = JObject.Parse(result);
-
-            if ((bool)s["ok"])
-            {
-                slackUserId = (string)s["user"]["id"];
-            }
+            return result;
         }
 
-        public void AddField(string title, dynamic value)
+
+        public void AddField(string title, string value)
         {
             var field = new {
                 title = title,
@@ -121,12 +137,13 @@ namespace Azure.Reaper
             fields.Add(field);
         }
 
-        public void AddAttachmentItem(string message, string colour)
+        public void AddAttachmentItem(string message, string colour, string pretext = null)
         {
             var item = new {
                 text = message,
                 color = colour,
-                fields = fields
+                fields = fields,
+                pretext = pretext
             };
 
             // Add the item to the attachments

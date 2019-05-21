@@ -47,7 +47,14 @@
     "category": "tags",
     "display_name": "In Use",
     "description": "Tag that specifies that a resource is in use and should not be considered by the Reaper"
-  },    
+  },
+  {
+    "name": "tag_alert",
+    "value": "reaperAlert",
+    "category": "tags",
+    "display_name": "Reaper Alert",
+    "description": "Tag to test the reaper. If this is set on a Resource Group and alert will be sent regardless of notification delay settings"
+  },
   {
     "name": "duration",
     "value": 7.0,

@@ -30,7 +30,7 @@ namespace Azure.Reaper
       this.logger = log;
     }
   
-    public void Update(
+    public async void Update(
       string subscriptionId,
       string groupName,
       string type,
@@ -38,13 +38,15 @@ namespace Azure.Reaper
     )
     {
       this.subscription = subscriptionId;
-      this.group_name = group_name;
+      this.group_name = groupName;
       this.name = name;
       this.type = type;
       this.last_notified = DateTime.UtcNow;
 
 
-      this.Insert();
+      this.items = new System.Collections.Generic.List<NotificationDelay>();
+      this.items.Add(this);
+      await this.Insert();
     }
   }
 }

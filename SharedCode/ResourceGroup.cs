@@ -82,28 +82,27 @@ namespace Azure.Reaper
     /// <returns>bool</returns>
     public bool InUse()
     {
-      bool result = false;
+      bool inUse = false;
 
       // ensure that the group has tags
-      result = HasTags();
+      bool hasTags = HasTags();
 
       // Get the inUse tag from settings
       string inUseTag = settings.First(s => s.name == "tag_inuse").value;
 
       // If the tags include InUse attempt tp convert it and then perform the test
-      if (result && resourceGroup.Tags.ContainsKey(inUseTag))
+      if (hasTags && resourceGroup.Tags.ContainsKey(inUseTag))
       {
-        bool inUse = Convert.ToBoolean(resourceGroup.Tags[inUseTag]);
+        inUse = Convert.ToBoolean(resourceGroup.Tags[inUseTag]);
 
         if (inUse)
         {
           logger.LogInformation("action=inUse, resource_group={resourceGroup}, message=Group is in use", resourceGroup.Name);
-          result = true;
         }
 
       }
 
-      return result;
+      return inUse;
     }
 
     /// <summary>
@@ -121,9 +120,11 @@ namespace Azure.Reaper
 
       bool notified = NotifiedWithinTimePeriod();
 
+      bool alertTag = HasTag("tag_alert");
+
       // If the group has not had a previous notification, determine if it is within
       // the duration period allowed for a resource group
-      if (!notified)
+      if (!notified || alertTag)
       {
         if (HasTag("tag_owner_email"))
         {
@@ -272,10 +273,12 @@ namespace Azure.Reaper
         IEnumerable<LocationTZ> timezones = timezone.GetAll();
 
         // Determine if the group contains the date tag
-        dynamic tagDate = HasTag("tag_date");
+        bool hasTagDate = HasTag("tag_date");
 
-        if (tagDate)
+        if (hasTagDate)
         {
+          string tagDate = GetTag("tag_date");
+
           // Get the created date of the rg in UTC
           DateTime rgCreateDateUtc = DateTime.SpecifyKind(DateTime.Parse((string) tagDate), DateTimeKind.Utc);
 
